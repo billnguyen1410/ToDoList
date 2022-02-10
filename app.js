@@ -4,6 +4,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const app = express();
+const _ = require("lodash");
 
 app.set('view engine', 'ejs');
 
@@ -62,7 +63,7 @@ app.get("/", function (req, res) {
 
 // CUSTOM LIST NAME, CREATE NEW ROUTE WITH EXPRESS --> reg.params.customListName
 app.get("/:customListName", (req, res) => {
-  const customListName = req.params.customListName;
+  const customListName = _.capitalize(req.params.customListName);
 
   // If we already have the route home, we need to check err
   List.findOne({name: customListName}, (err, foundList) => {
@@ -118,12 +119,30 @@ app.post("/", function (req, res) {
 app.post("/delete", (req, res) => {
   const checkedItemId = req.body.checkbox;
 
-  Item.findByIdAndRemove(checkedItemId, (err) => {
-    if(!err){
-      console.log("Successfully deleted checked item")
-      res.redirect("/");
-    }
-  })
+  //Check what is the value of the listName
+  const listName = req.body.listName;
+
+  //Check to see if we are making post request or we are trying to delete
+  // item from custom List, add function: delete an item from custom list.
+  if( listName === "Today"){
+    Item.findByIdAndRemove(checkedItemId, (err) => {
+      if(!err){
+        console.log("Successfully deleted checked item")
+        res.redirect("/");
+      }
+    });
+  }else {
+    // first condition: name = listName 
+    // second condition: $pull = items: [itemsSchema]:{_id: {checkedItemId}}
+    // above at the schema.
+    // third condition: check error and redirect to the route.
+    List.findOneAndUpdate({name: listName}, {$pull: {items: {_id: checkedItemId}}}, function(err, foundList) {
+        if(!err){
+          res.redirect("/" + listName);
+        }
+      });
+  }
+
 });
 
 
